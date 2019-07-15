@@ -170,15 +170,39 @@ left join HAND_COURSE f on a.COURSE_NO = f.COURSE_NO
 
  
 7、查询各科成绩前三名的记录:(不考虑成绩并列情况)，显示（学号、课程号、分数）
- select m.STUDENT_NO , n.COURSE_NO , n.CORE from HAND_STUDENT m
-JOIN
- HAND_STUDENT_CORE n ON m.STUDENT_NO = n.STUDENT_NO and n.CORE in
-(select top '3' CORE from HAND_STUDENT_CORE where COURSE_NO = n.COURSE_NO order by CORE desc) order by n.CORE desc
+ SELECT
+    student_no,
+    course_no,
+    core 
+FROM
+    (
+    SELECT
+        hsc.student_no,
+        hsc.course_no,
+        hsc.core,
+        DENSE_RANK () OVER ( PARTITION BY hsc.course_no ORDER BY hsc.core DESC ) ranks 
+    FROM
+        hand_student_core hsc 
+    ) 
+WHERE
+    ranks < 4;
 8、查询选修“谌燕”老师所授课程的学生中每科成绩最高的学生，显示（学号、姓名、课程名称、成绩）
-  select top 1 s.CORE,d.STUDENT_NO,d.STUDENT_NAME,c.COURSE_NAME
-from HAND_STUDENT d, HAND_STUDENT_CORE s, HAND_COURSE  c, HAND_TEACHER t
-where d.STUDENT_NO = s.STUDENT_NO and s.COURSE_NO = c.COURSE_NO and c.TEACHER_NO = t.TEACHER_NO and t.TEACHER_NAME = '谌燕'
-order by S.CORE desc
+  SELECT
+    hs.student_no,
+    hs.student_name,
+    hc.course_name,
+    hsc.core 
+FROM
+    hand_student hs,
+    hand_student_core hsc,
+    hand_course hc,
+    hand_teacher ht 
+WHERE
+    hs.student_no = hsc.student_no 
+    AND hsc.course_no = hc.course_no 
+    AND hc.teacher_no = ht.teacher_no 
+    AND ht.teacher_name = '谌燕' 
+    AND hsc.core = ( SELECT MAX( sc.core ) FROM hand_student_core sc WHERE sc.course_no = hc.course_no )
  
 9、查询两门及以上不及格课程的同学及平均成绩，显示（学号、姓名、平均成绩（保留两位小数））
  SELECT d.STUDENT_NO,d.STUDENT_NAME,AVG(s.CORE) FROM HAND_STUDENT d 
@@ -220,7 +244,28 @@ FROM
     hand_teacher ht1
     LEFT JOIN hand_teacher ht2 ON ht1.manager_no = ht2.teacher_no START WITH ht1.teacher_name = '胡明星' CONNECT BY PRIOR ht1.manager_no = ht1.teacher_no
 13、查询分数高于课程“J2SE”的所有学生课程信息，显示（学号，姓名，课程名称、分数）
-   
+   SELECT
+    hs.student_no,
+    hs.student_name,
+    hc.course_name,
+    hsc.core 
+FROM
+    hand_student hs,
+    hand_course hc,
+    hand_student_core hsc 
+WHERE
+    hc.course_no = hsc.course_no 
+    AND hsc.student_no = hs.student_no 
+    AND hsc.core > ALL (
+    SELECT
+        hsc2.core 
+    FROM
+        hand_student_core hsc2,
+        hand_course hc2 
+    WHERE
+        hsc2.course_no = hc2.course_no 
+    AND hc2.course_name = 'J2SE' 
+    )
 14、分别根据教师、课程、教师和课程三个条件统计选课的学生数量：(使用rollup),显示（教师名称、课程名称、选课数量）
  
 15、查询所有课程成绩前三名的按照升序排在最开头，其余数据排序保持默认（7分）,显示（学号、成绩）
